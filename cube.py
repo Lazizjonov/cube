@@ -178,7 +178,7 @@ def clicked(point1, point2):
 s = t.getscreen()
 
 for i in range(3):
-    drawCube(rub.cubes[i][0][0], (0)*40, (0)*40, (2-i)*40)
+    drawCube(rub.cubes[i][0][0], (2-i)*40, (0)*40, (0)*40)
 
 
 def drawPoint(xpos, ypos, zpos):

@@ -10,6 +10,7 @@
 from time import sleep
 import turtle
 import math
+from unicodedata import name
 
 rad = math.radians
 
@@ -21,28 +22,11 @@ def cos(x):
     return math.cos(rad(x))
 
 pi = math.pi
-colors = ["white", "red", "blue", "orange", "green", "yellow"]
-
-
-# turtle.tracer(0, 0) is used to make the speed of turtle object as fast as possible
-# it is used with turtle.update() function at the end of movement to display changes.
-
-turtle.tracer(0, 0)
-t = turtle.getturtle()
-t.hideturtle()
-t.speed(0)
+# colors = ["white", "red", "blue", "orange", "green", "yellow"]
 xAxis = 315
 yAxis = 90
 zAxis = 225
 clen = 40
-
-
-# setPoint3() function takes 3d point and returns its 2d transition given degrees of all 3 axes
-def setPoint3D(xpos, ypos, zpos, xa = xAxis, ya = yAxis, za = zAxis):
-    y = ypos*sin(ya) + xpos*sin(xa) + zpos*sin(za)
-    x = ypos*cos(ya) + xpos*cos(xa) + zpos*cos(za)
-    # t.setpos(x,y)
-    return (x,y)
 
 class Point:
     def __init__(self, x = 0, y = 0, z = 0):
@@ -55,17 +39,30 @@ class Point:
         self.y = y
         self.z = z
 
+    # takePoint2D() function takes 3d point and returns its 2d transition given degrees of all 3 axes
     def takePoint2D(self, xa = xAxis, ya = yAxis, za = zAxis):
-        return setPoint3D(self.x, self.y, self.z, xa, ya, za)
+        y = self.y * sin(ya) + self.x * sin(xa) + self.z * sin(za)
+        x = self.y * cos(ya) + self.x * cos(xa) + self.z * cos(za)
+        return (x, y)
+
+    # rotatePoint2D() function takes:
+    #     "xc", "yc" coordinates of the center of rotation
+    #     rotation angle "alfa" of the given point 
+    # returns new "x" and "y" coordinates
+    def rotatePoint2D(self, xc, yc, alfa):
+        self.x = (  (self.x - xc) * cos(alfa) - (self.y - yc) * sin(alfa)  ) + xc
+        self.y = (  (self.y - xc) * sin(alfa) + (self.y - yc) * cos(alfa)  ) + yc
 
 
-class Rect:
-    def __init__(self, color):
+
+class Rect():
+    def __init__(self, color, next = None):
         self.p1 = Point(0,0,0)
         self.p2 = Point(0,0,0)
         self.p3 = Point(0,0,0)
         self.p4 = Point(0,0,0)
         self.color = color
+        self.next = next
     
     def getCenter(self):
         return [ (self.p1.x + self.p3.x)/2, (self.p1.y + self.p3.y)/2, (self.p1.z + self.p3.z)/2 ]
@@ -77,16 +74,37 @@ class Rect:
         print(myCenter[0], cx, myCenter[1], cy, myCenter[2], cz)
         return myCenter[0] + cx >= 0 and myCenter[1] + cy >= 0 and myCenter[2] + cz >= 0
 
+    # Function to draw rectangle side of a single cube
+    def drawRect(self, t:turtle.Turtle):
+        t.fillcolor(self.color)
+        t.penup()
+        t.setpos(self.p1.takePoint2D())
+        t.begin_fill()
+        t.setpos(self.p2.takePoint2D())
+        t.setpos(self.p3.takePoint2D())
+        t.setpos(self.p4.takePoint2D())
+        t.setpos(self.p1.takePoint2D())
+        t.end_fill()
+
 
 # Each cube has 6 sides some sides has attribute color others are linked to other 
 # cube that is positioned exactly at that side. 
 # This link is supposed to help during rotation of cube parts
-class Cube:
-    def __init__(self, xSide=0, ySide=0, zSide=0, mxSide=0, mySide=0, mzSide=0, xPos=0, yPos=0, zPos=0):
-        self.xSide, self.ySide, self.zSide, self.mxSide, self.mySide, self.mzSide = ySide, zSide, mxSide, mySide, mzSide, xSide
+
+
+
+class Cube():
+    def __init__(self, t, xPos=0, yPos=0, zPos=0):
+        self.xSide = Rect("no")
+        self.ySide = Rect("no")
+        self.zSide = Rect("no")
+        self.mxSide = Rect("no")
+        self.mySide = Rect("no")
+        self.mzSide = Rect("no")
         self.xPos = xPos
         self.yPos = yPos
         self.zPos = zPos
+        self.t = t
 
     def getAllSides(self):
         return (self.xSide, self.ySide, self.zSide, self.mxSide, self.mySide, self.mzSide) 
@@ -94,149 +112,135 @@ class Cube:
     def getCenter(self):
         return (self.xPos - clen/2, self.yPos - clen/2, self.zPos - clen/2)
 
+    # Function to draw a single cube
+    # It calls drawRect function 6 times to draw all six sides (rectangles) of cube
+    # todo: rectangles should be drawn only if they are faced to screen else not 
+    def drawCube(self, t):
+        cubeCenter = self.getCenter()
+        for side in self.getAllSides():
+            if side.color != "no" and side.calcAngles(*cubeCenter):
+                side.drawRect(t)
+    
+    # setPoints() function sets points of a single cube which is passed as first argument in the position xp, yp, zp
+    # 3 default arguments are x,y,z axis on 3d implemented in 2d
+    def setPoints(self, xp, yp, zp):
+        if (self.xSide.color != "no"):
+            self.xSide.p1.changePoint(xp, yp, zp)
+            self.xSide.p2.changePoint(xp, yp - clen, zp)
+            self.xSide.p3.changePoint(xp, yp - clen, zp - clen)
+            self.xSide.p4.changePoint(xp, yp, zp - clen)
+        if (self.ySide.color != "no"):
+            self.ySide.p1.changePoint(xp, yp, zp)
+            self.ySide.p2.changePoint(xp, yp, zp - clen)
+            self.ySide.p3.changePoint(xp - clen, yp, zp - clen)
+            self.ySide.p4.changePoint(xp - clen, yp, zp)
+        if (self.zSide.color != "no"):
+            self.zSide.p1.changePoint(xp, yp, zp)
+            self.zSide.p2.changePoint(xp - clen, yp, zp)
+            self.zSide.p3.changePoint(xp - clen, yp - clen, zp)
+            self.zSide.p4.changePoint(xp, yp - clen, zp)
+        if (self.mxSide.color != "no"):
+            self.mxSide.p1.changePoint(xp - clen, yp, zp)
+            self.mxSide.p2.changePoint(xp - clen, yp, zp - clen)
+            self.mxSide.p3.changePoint(xp - clen, yp - clen, zp - clen)
+            self.mxSide.p4.changePoint(xp - clen, yp - clen, zp)
+        if (self.mySide.color != "no"):
+            self.mySide.p1.changePoint(xp, yp - clen, zp)
+            self.mySide.p2.changePoint(xp - clen, yp - clen, zp)
+            self.mySide.p3.changePoint(xp - clen, yp - clen, zp - clen)
+            self.mySide.p4.changePoint(xp, yp - clen, zp - clen)
+        if (self.mzSide.color != "no"):
+            self.mzSide.p1.changePoint(xp, yp, zp - clen)
+            self.mzSide.p2.changePoint(xp, yp - clen, zp - clen)
+            self.mzSide.p3.changePoint(xp - clen, yp - clen, zp - clen)
+            self.mzSide.p4.changePoint(xp - clen, yp, zp - clen)
+
 
 # Rubick's cube contains 27 single cubes united in traditional form 3x3x3
 # rubics object contains cubes matrix which is 3x3x3 size
 class rubics:
-    def __init__(self, xPos, yPos):
-        self.xPos, self.yPos = xPos, yPos
+    def __init__(self, t):
+        self.t = t
+        self.cubes = [[[[], [], []], [[], [], []], [[], [], []]], [[[], [], []], [[], [], []], [[], [], []]], [[[], [], []], [[], [], []], [[], [], []]]]
+        for i in range(3):
+            # self.cubes.append([])
+            for j in range(3):
+                # self.cubes[i].append([])
+                for k in range(3):
+                    # self.cubes[i][j].append([])
+                    self.cubes[i][j][k] = Cube(t)
+
+        for i in range(3):
+            for j in range(3):
+                for k in range(3):
+                    if i==0:
+                        self.cubes[i][j][k].ySide.color="white"
+                    if j==0:
+                        self.cubes[i][j][k].xSide.color="blue"
+                    if k==0:
+                        self.cubes[i][j][k].zSide.color="red"
+                    if j==2:
+                        self.cubes[i][j][k].mxSide.color="green"
+                    if k==2:
+                        self.cubes[i][j][k].mzSide.color="orange"
+                    if i==2:
+                        self.cubes[i][j][k].mySide.color="yellow"
+                    if i==1:
+                        self.cubes[i-1][j][k].mySide.next = self.cubes[i][j][k]
+                        self.cubes[i][j][k].ySide.next = self.cubes[i-1][j][k]
+                        self.cubes[i][j][k].mySide.next = self.cubes[i+1][j][k]
+                        self.cubes[i+1][j][k].ySide.next = self.cubes[i][j][k]
+                    if j==1:
+                        self.cubes[i][j-1][k].mxSide.next = self.cubes[i][j][k]
+                        self.cubes[i][j][k].xSide.next = self.cubes[i][j-1][k]
+                        self.cubes[i][j+1][k].xSide.next = self.cubes[i][j][k]
+                        self.cubes[i][j][k].mxSide.next = self.cubes[i][j+1][k]
+                    if k==1:
+                        self.cubes[i][j][k-1].mzSide.next = self.cubes[i][j][k]
+                        self.cubes[i][j][k].zSide.next = self.cubes[i][j][k-1]
+                        self.cubes[i][j][k+1].zSide.next = self.cubes[i][j][k]
+                        self.cubes[i][j][k].mzSide.next = self.cubes[i][j][k+1]
+
+    def drawRC(self, t):
+        for i in range(3):
+            for j in range(3):
+                for k in range(3):
+                    self.cubes[i][j][k].setPoints( (3-j)*(clen+2), (3-i)*(clen+2), (3-k)*(clen+2) )
+                    self.cubes[i][j][k].drawCube(t)
+
+    def clicked(self, point1, point2):
+        for i in range(18):
+
+            self.refresh()
     
-    cubes = []
-    for i in range(3):
-        cubes.append([])
-        for j in range(3):
-            cubes[i].append([])
-            for k in range(3):
-                cubes[i][j].append([])
-                cubes[i][j][k] = Cube()
+    # turtle.tracer(0, 0) is used to make the speed of turtle object as fast as possible
+    # it is used with turtle.update() function at the end of movement to display changes.
+    
 
-    for i in range(3):
-        for j in range(3):
-            for k in range(3):
-                if i==0:
-                    cubes[i][j][k].ySide = Rect(color="white")
-                if j==0:
-                    cubes[i][j][k].xSide = Rect(color="blue")
-                if k==0:
-                    cubes[i][j][k].zSide = Rect(color="red")
-                if j==2:
-                    cubes[i][j][k].mxSide = Rect(color="green")
-                if k==2:
-                    cubes[i][j][k].mzSide = Rect(color="orange")
-                if i==2:
-                    cubes[i][j][k].mySide = Rect(color="yellow")
-                if i==1:
-                    cubes[i-1][j][k].myside = cubes[i][j][k]
-                    cubes[i][j][k].ySide = cubes[i-1][j][k]
-                    cubes[i][j][k].mySide = cubes[i+1][j][k]
-                    cubes[i+1][j][k].ySide = cubes[i][j][k]
-                if j==1:
-                    cubes[i][j-1][k].mxSide = cubes[i][j][k]
-                    cubes[i][j][k].xSide = cubes[i][j-1][k]
-                    cubes[i][j+1][k].xSide = cubes[i][j][k]
-                    cubes[i][j][k].mxSide = cubes[i][j+1][k]
-                if k==1:
-                    cubes[i][j][k-1].mzSide = cubes[i][j][k]
-                    cubes[i][j][k].zSide = cubes[i][j][k-1]
-                    cubes[i][j][k+1].zSide = cubes[i][j][k]
-                    cubes[i][j][k].mzSide = cubes[i][j][k+1]
-        
+    
+    
+    def refresh(self):
+        self.t.clear()
+        self.drawRC(self.t)
+        turtle.update()
+        sleep(0.2)
 
 
-rub = rubics(0, 0)
-if(rub.cubes[1][1][1].xSide == rub.cubes[1][0][1]):
-    print("yse")
-
-
-s = t.getscreen()
-s.bgcolor("silver")
-
-
-t.penup()
-t.pencolor('black')
-
-# setPoints() function sets points of a single cube which is passed as first argument in the position xp, yp, zp
-# 3 default arguments are x,y,z axis on 3d implemented in 2d
-
-def setPoints(c, xp, yp, zp):
-    if hasattr(c.xSide, "color"):
-        c.xSide.p1.changePoint(xp, yp, zp)
-        c.xSide.p2.changePoint(xp, yp - clen, zp)
-        c.xSide.p3.changePoint(xp, yp - clen, zp - clen)
-        c.xSide.p4.changePoint(xp, yp, zp - clen)
-    if hasattr(c.ySide, "color"):
-        c.ySide.p1.changePoint(xp, yp, zp)
-        c.ySide.p2.changePoint(xp, yp, zp - clen)
-        c.ySide.p3.changePoint(xp - clen, yp, zp - clen)
-        c.ySide.p4.changePoint(xp - clen, yp, zp)
-    if hasattr(c.zSide, "color"):
-        c.zSide.p1.changePoint(xp, yp, zp)
-        c.zSide.p2.changePoint(xp - clen, yp, zp)
-        c.zSide.p3.changePoint(xp - clen, yp - clen, zp)
-        c.zSide.p4.changePoint(xp, yp - clen, zp)
-    if hasattr(c.mxSide, "color"):
-        c.mxSide.p1.changePoint(xp - clen, yp, zp)
-        c.mxSide.p2.changePoint(xp - clen, yp, zp - clen)
-        c.mxSide.p3.changePoint(xp - clen, yp - clen, zp - clen)
-        c.mxSide.p4.changePoint(xp - clen, yp - clen, zp)
-    if hasattr(c.mySide, "color"):
-        c.mySide.p1.changePoint(xp, yp - clen, zp)
-        c.mySide.p2.changePoint(xp - clen, yp - clen, zp)
-        c.mySide.p3.changePoint(xp - clen, yp - clen, zp - clen)
-        c.mySide.p4.changePoint(xp, yp - clen, zp - clen)
-    if hasattr(c.mzSide, "color"):
-        c.mzSide.p1.changePoint(xp, yp, zp - clen)
-        c.mzSide.p2.changePoint(xp, yp - clen, zp - clen)
-        c.mzSide.p3.changePoint(xp - clen, yp - clen, zp - clen)
-        c.mzSide.p4.changePoint(xp - clen, yp, zp - clen)
-
-
-
-# Function to draw rectangle side of a single cube
-def drawRect(recSide):
-    t.fillcolor(recSide.color)
-    t.setpos(recSide.p1.takePoint2D())
-    t.begin_fill()
-    t.setpos(recSide.p2.takePoint2D())
-    t.setpos(recSide.p3.takePoint2D())
-    t.setpos(recSide.p4.takePoint2D())
-    t.setpos(recSide.p1.takePoint2D())
-    t.end_fill()
-
-# Function to draw a single cube
-# It calls drawRect function 6 times to draw all six sides (rectangles) of cube
-# todo: rectangles should be drawn only if they are faced to screen else not 
-def drawCube(c:Cube):
-    cubeCenter = c.getCenter()
-    for side in c.getAllSides():
-        if hasattr(side, "color") and side.calcAngles(*cubeCenter):
-            drawRect(side)
-
-def drawRC(c = rub.cubes):
-    for i in range(3):
-        for j in range(3):
-            for k in range(3):
-                t.penup()
-                setPoints(c[i][j][k], (3-j)*(clen+2), (3-i)*(clen+2), (3-k)*(clen+2))
-                drawCube(c[i][j][k])
+if( __name__ == "__main__" ):
+    turtle.tracer(0, 0)
+    t = turtle.getturtle()
+    t.hideturtle()
+    t.speed(0)
+    s = t.getscreen()
+    s.bgcolor("silver")
+    t.penup()
+    t.pencolor('black')
     turtle.update()
+    
+    rub = rubics(t)
 
+    
+    s.onclick(rub.clicked)
+    s._root.mainloop()
 
-def refresh():
-    t.clear()
-    drawRC(rub.cubes)
-    sleep(0.2)
-
-drawRC(rub.cubes)
-
-def clicked(point1, point2):
-    global xAxis
-    global zAxis
-    for i in range(18):
-        xAxis = (xAxis + 10) % 360
-        zAxis = (zAxis + 10) % 360
-        refresh()
-
-turtle.update()
-s.onclick(clicked)
-s._root.mainloop()
+# todo: rotation of whole RC

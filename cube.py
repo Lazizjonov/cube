@@ -30,13 +30,6 @@ sin45sqr = 2 * sin(45) * sin(45) / clen
 turtle.tracer(0, 0)
 t = turtle.getturtle()
 
-def frotatePoint2D(px, py, cx, cy, alfa:float):
-    cosine = math.cos(math.radians(alfa))
-    sine = math.sin(math.radians(alfa))
-    x = (px - cx)  * cosine - (py - cy) * sine
-    y = (px - cx) * sine + (py - cy) * cosine
-    return x + cx, y + cy
-
 class Point:
     def __init__(self, x = 0, y = 0, z = 0):
         self.x = x
@@ -59,7 +52,14 @@ class Point:
     #     rotation angle "alfa" of the given point 
     # returns new "x" and "z" coordinates
     def rotatePoint2D(self, cx, cz, alfa:float):
-        self.x, self.z = frotatePoint2D(self.x, self.z, cx, cz, alfa)
+        self.x, self.z = self.frotatePoint2D(self.x, self.z, cx, cz, alfa)
+
+    def frotatePoint2D(self, px, py, cx, cy, alfa:float):
+        cosine = math.cos(math.radians(alfa))
+        sine = math.sin(math.radians(alfa))
+        x = (px - cx)  * cosine - (py - cy) * sine
+        y = (px - cx) * sine + (py - cy) * cosine
+        return x + cx, y + cy
 
 
 

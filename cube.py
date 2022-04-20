@@ -11,6 +11,8 @@ from time import sleep
 import turtle
 import math
 
+from matplotlib.pyplot import cla
+
 
 # redefining sinus and cosinus functions to use in light form
 def sin(x:float):
@@ -19,16 +21,37 @@ def sin(x:float):
 def cos(x:float):
     return math.cos(math.radians(x))
 
+def atan(x:float):
+    return math.atan(x) * 180 / pi
+
+def vectorLen(p1):
+    return math.sqrt((p1[0] - 500) ** 2 + (p1[1] - 500) ** 2 + (p1[2] - 500) ** 2)
+
 pi = math.pi
 # colors = ["white", "red", "blue", "orange", "green", "yellow"]
 xAxis = 315
 yAxis = 90
 zAxis = 225
-clen = 100
+clen = 70
 clen2 = clen / 2 * sin(45)
-sin45sqr = 2 * sin(45) * sin(45) / clen
+
 turtle.tracer(0, 0)
 t = turtle.getturtle()
+
+class Render():
+    listOfRects = []
+    
+    def renderAll(self):
+        self.listOfRects.sort()
+        for rect in self.listOfRects:
+            rect.drawRect()
+            # sleep(0.2)
+            # turtle.update()
+
+        self.listOfRects = []
+
+    def addRect(self, rect):
+        self.listOfRects.append(rect)
 
 class Point:
     def __init__(self, x = 0, y = 0, z = 0):
@@ -64,42 +87,35 @@ class Point:
 
 
 class Rect():
-    def __init__(self, color, next = None):
+    def __init__(self, color):
         self.p1 = Point(0,0,0)
         self.p2 = Point(0,0,0)
         self.p3 = Point(0,0,0)
         self.p4 = Point(0,0,0)
         self.color = color
-        self.next = next
     
     def getCenter(self):
         return [ (self.p1.x + self.p3.x)/2, (self.p1.y + self.p3.y)/2, (self.p1.z + self.p3.z)/2 ]
 
-    # calcAngles() implements calculation on vector from the center of cube (cx, cy, cz) to center of rect (myCenter) 
-    # and calculates if the center coordinates of cube center are higher than coordinates of rect center
-    # 
-    def calcAngles(self, cx, cy, cz):
-        myCenter = self.getCenter()
-        # xDif, yDif, zDif  = cx - myCenter[0], cy - myCenter[1], cz - myCenter[2]
-        # if self.color == "red": print("x dif:", "{:.2f}".format(xDif), "\tty dif:", "{:.2f}".format(yDif), "\tz dif:", "{:.2f}".format(zDif))
-        # return xDif <= clen2 and yDif <= clen2 and zDif <= clen2
 
-        # if angle between vector from the center of the cube to the center of the side (Rect) is lower than 90 degrees 
-        vx, vy, vz = myCenter[0] - cx, myCenter[1] - cy, myCenter[2] - cz
-        return math.acos((vx + vy + vz) * sin45sqr) * 180 / pi <= 90
-
+    def __lt__(self, other):
+        return vectorLen(self.getCenter()) > vectorLen(other.getCenter())
 
     # Function to draw rectangle side of a single cube
     def drawRect(self):
         t.fillcolor(self.color)
         t.penup()
         t.setpos(self.p1.takePoint2D())
+        t.pendown()
         t.begin_fill()
         t.setpos(self.p2.takePoint2D())
         t.setpos(self.p3.takePoint2D())
         t.setpos(self.p4.takePoint2D())
         t.setpos(self.p1.takePoint2D())
         t.end_fill()
+
+    def renderRect(self, ren:Render):
+        ren.addRect(self)
 
     def rotateRect2D(self, xc, yc, alfa):
         for point in [self.p1, self.p2, self.p3, self.p4]:
@@ -128,13 +144,12 @@ class Cube():
         return ((self.mxSide.p1.x + self.xSide.p1.x) / 2, (self.mxSide.p1.y + self.xSide.p1.y) / 2, (self.mxSide.p1.z + self.xSide.p1.z) / 2)
 
     # Function to draw a single cube
-    # It calls drawRect function 6 times to draw all six sides (rectangles) of cube
-    # todo: rectangles should be drawn only if they are faced to screen else not 
-    def drawCube(self):
+    # It calls renderCube function 6 times to draw all six sides (rectangles) of cube
+    def renderCube(self, ren:Render):
         cubeCenter = self.getCenter()
         for side in self.getAllSides():
-            if side.color != "no" and side.calcAngles(*cubeCenter):
-                side.drawRect()
+            if side.color != "no":
+                side.renderRect(ren)
     
     # setPoints() function sets points of a single cube which is passed as first argument in the position xp, yp, zp
     # 3 default arguments are x,y,z axis on 3d implemented in 2d
@@ -183,6 +198,8 @@ class Cube():
 class rubics:
     def __init__(self):
         self.cubes = [[[[], [], []], [[], [], []], [[], [], []]], [[[], [], []], [[], [], []], [[], [], []]], [[[], [], []], [[], [], []], [[], [], []]]]
+        self.dragFlag = 0
+        self.lockRotation = 1
         for i in range(3):
             # self.cubes.append([])
             for j in range(3):
@@ -206,40 +223,47 @@ class rubics:
                         self.cubes[i][j][k].zSide.color="red"
                     if i==2:
                         self.cubes[i][j][k].xSide.color="blue"
-                    if i==1:
-                        self.cubes[i-1][j][k].xSide.next = self.cubes[i][j][k]
-                        self.cubes[i][j][k].mxSide.next = self.cubes[i-1][j][k]
-                        self.cubes[i][j][k].xSide.next = self.cubes[i+1][j][k]
-                        self.cubes[i+1][j][k].mxSide.next = self.cubes[i][j][k]
-                    if j==1:
-                        self.cubes[i][j-1][k].ySide.next = self.cubes[i][j][k]
-                        self.cubes[i][j][k].mySide.next = self.cubes[i][j-1][k]
-                        self.cubes[i][j+1][k].mySide.next = self.cubes[i][j][k]
-                        self.cubes[i][j][k].ySide.next = self.cubes[i][j+1][k]
-                    if k==1:
-                        self.cubes[i][j][k-1].zSide.next = self.cubes[i][j][k]
-                        self.cubes[i][j][k].mzSide.next = self.cubes[i][j][k-1]
-                        self.cubes[i][j][k+1].mzSide.next = self.cubes[i][j][k]
-                        self.cubes[i][j][k].zSide.next = self.cubes[i][j][k+1]
+                    # if i==1:
+                    #     self.cubes[i-1][j][k].xSide.next = self.cubes[i][j][k]
+                    #     self.cubes[i][j][k].mxSide.next = self.cubes[i-1][j][k]
+                    #     self.cubes[i][j][k].xSide.next = self.cubes[i+1][j][k]
+                    #     self.cubes[i+1][j][k].mxSide.next = self.cubes[i][j][k]
+                    # if j==1:
+                    #     self.cubes[i][j-1][k].ySide.next = self.cubes[i][j][k]
+                    #     self.cubes[i][j][k].mySide.next = self.cubes[i][j-1][k]
+                    #     self.cubes[i][j+1][k].mySide.next = self.cubes[i][j][k]
+                    #     self.cubes[i][j][k].ySide.next = self.cubes[i][j+1][k]
+                    # if k==1:
+                    #     self.cubes[i][j][k-1].zSide.next = self.cubes[i][j][k]
+                    #     self.cubes[i][j][k].mzSide.next = self.cubes[i][j][k-1]
+                    #     self.cubes[i][j][k+1].mzSide.next = self.cubes[i][j][k]
+                    #     self.cubes[i][j][k].zSide.next = self.cubes[i][j][k+1]
 
-    def firsDrawRC(self):
+    def firsDrawRC(self, ren:Render):
         for i in range(3):
             for j in range(3):
                 for k in range(3):
-                    self.cubes[i][j][k].setPoints( i*(clen+2), j*(clen+2), k*(clen+2) )
-                    self.cubes[i][j][k].drawCube()
+                    self.cubes[i][j][k].setPoints( i*(clen), j*(clen), k*(clen) )
+                    self.cubes[i][j][k].renderCube(ren)
+        ren.renderAll()
     def drawRC(self):
         for i in range(3):
             for j in range(3):
                 for k in range(3):
-                    self.cubes[i][j][k].drawCube()
+                    self.cubes[i][j][k].renderCube(ren)
+        ren.renderAll()
     
         
     def rotateRC2D(self):
         for i in range(3):
             for j in range(3):
                 for k in range(3):
-                    self.cubes[i][j][k].rotateCube2D(clen * 3 / 2, clen * 3 / 2, 1)
+                    self.cubes[i][j][k].rotateCube2D(clen * 3 / 2, clen * 3 / 2, 3)
+    
+    def rotateIJK(self):
+        for i in range(3):
+            for k in range(3):
+                    self.cubes[i][2][k].rotateCube2D(clen * 3 / 2, clen * 3 / 2, -3)
             
     def refresh(self):
         t.clear()
@@ -248,11 +272,21 @@ class rubics:
         # sleep(0.02)
     
     def clicked(self, point1, point2):
-        for i in range(360):
+        self.lockRotation = 0
+        for i in range(30):
             # print(i)
+            self.rotateIJK()
+            self.refresh()
+
+    def dragging(self, event):
+        if( self.dragFlag == 0 and self.lockRotation == 0):
+            self.dragFlag = 1
             self.rotateRC2D()
             self.refresh()
-            sleep(0.01)
+            self.dragFlag = 0
+
+    def onRelease(self, event):
+        self.lockRotation = 1
 
 
 # turtle.tracer(0, 0) is used to make the speed of turtle object as fast as possible
@@ -263,23 +297,18 @@ if( __name__ == "__main__" ):
     t.speed(0)
     s = t.getscreen()
     s.bgcolor("silver")
-    t.penup()
-    t.pencolor('black')
+    t.color("grey")
+    t.pensize(2)    
     turtle.update()
     
     rub = rubics()
-    rub.firsDrawRC()
+    ren = Render()
+    rub.firsDrawRC(ren)
 
-    
+    canvas = turtle.getcanvas()
+    root = canvas.winfo_toplevel()
+    root.bind('<Motion>', rub.dragging)
+    root.bind('<ButtonRelease>', rub.onRelease)
     s.onclick(rub.clicked)
+    
     s._root.mainloop()
-
-# todo: rotation of whole RC
-
-
-# for i in range(100):
-#     x = x * cos(6) - y * sin(6)
-#     y = x * sin(6) + y * cos(6)
-#     t.setpos(x, y) 
-
-# α = arccos[(xa * xb + ya * yb + za * zb) / (√(xa2 + ya2 + za2) * √(xb2 + yb2 + zb2))]

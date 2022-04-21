@@ -97,10 +97,11 @@ class Rect():
         self.p4 = Point(0,0,0)
         self.color = color
     
+    # function to get center of Rectangle by calculating arithmetic avarage of current positions of 1st and 3rd points
     def getCenter(self):
         return [ (self.p1.x + self.p3.x)/2, (self.p1.y + self.p3.y)/2, (self.p1.z + self.p3.z)/2 ]
 
-
+    # __lt__ function allows to sort Rect objects in array which I used in Render object
     def __lt__(self, other):
         return vectorLen(self.getCenter()) > vectorLen(other.getCenter())
 
@@ -258,8 +259,8 @@ class rubics:
                     self.cubes[i][j][k].renderCube(ren)
         ren.renderAll()
     
-        
-    def rotateRC2D(self, ex, ey):
+    # Function to rotate whole RC in 3D
+    def rotateRC3D(self, ex, ey):
         xch, ych = ex - self.mousePosX, ey - self.mousePosY
         self.mousePosX, self.mousePosY = ex, ey
         
@@ -294,7 +295,7 @@ class rubics:
         if( self.dragFlag == 0 and self.lockRotation == 0):
             self.dragFlag = 1
             # print( self.mousePosX, self.mousePosY, event.x, event.y)
-            self.rotateRC2D(event.x, event.y)
+            self.rotateRC3D(event.x, event.y)
             self.refresh()
             self.dragFlag = 0
 

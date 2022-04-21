@@ -2,7 +2,8 @@
 # 12.04.2022 Tashkent, Uzbekistan.
 
 # Implementation of Rubick's Cube (RC) with python turtle
-# To date I developed view of RC and made some refresh function to clean screen and redraw RC (with different angles) from different views
+# To date Rubick's Cube is fully rotatable by mouse drag
+# To do functions to rotate sides to make it fully playable!
 
 
 
@@ -74,8 +75,10 @@ class Point:
     #     "xc", "zc" coordinates of the center of rotation
     #     rotation angle "alfa" of the given point 
     # returns new "x" and "z" coordinates
-    def rotatePoint2D(self, cx, cz, alfa:float):
+    def rotatePoint2D(self, cx, cz, alfa:float, betta:float = 0):
         self.x, self.z = self.frotatePoint2D(self.x, self.z, cx, cz, alfa)
+        self.y, self.z = self.frotatePoint2D(self.y, self.z, cx, cz, betta)
+        self.y, self.x = self.frotatePoint2D(self.y, self.x, cx, cz, betta)
 
     def frotatePoint2D(self, px, py, cx, cy, alfa:float):
         cosine = math.cos(math.radians(alfa))
@@ -117,9 +120,9 @@ class Rect():
     def renderRect(self, ren:Render):
         ren.addRect(self)
 
-    def rotateRect2D(self, xc, yc, alfa):
+    def rotateRect2D(self, xc, yc, alfa, betta:float = 0):
         for point in [self.p1, self.p2, self.p3, self.p4]:
-            point.rotatePoint2D(xc, yc, alfa)
+            point.rotatePoint2D(xc, yc, alfa, betta)
 
 # Each cube has 6 sides some sides has attribute color others are linked to other 
 # cube that is positioned exactly at that side. 
@@ -188,10 +191,10 @@ class Cube():
         self.mzSide.p3.changePoint(xp + clen, yp + clen, zp)
         self.mzSide.p4.changePoint(xp, yp + clen, zp)
     
-    def rotateCube2D(self, xc, yc, alfa):
+    def rotateCube2D(self, xc, yc, alfa, betta:float = 0):
         self.center.rotatePoint2D(xc, yc, alfa)
         for rec in self.getAllSides():
-            rec.rotateRect2D(xc, yc, alfa)
+            rec.rotateRect2D(xc, yc, alfa, betta)
 
 # Rubick's cube contains 27 single cubes united in traditional form 3x3x3
 # rubics object contains cubes matrix which is 3x3x3 size
@@ -200,6 +203,8 @@ class rubics:
         self.cubes = [[[[], [], []], [[], [], []], [[], [], []]], [[[], [], []], [[], [], []], [[], [], []]], [[[], [], []], [[], [], []], [[], [], []]]]
         self.dragFlag = 0
         self.lockRotation = 1
+        self.mousePosX = 0
+        self.mousePosY = 0
         for i in range(3):
             # self.cubes.append([])
             for j in range(3):
@@ -254,11 +259,17 @@ class rubics:
         ren.renderAll()
     
         
-    def rotateRC2D(self):
+    def rotateRC2D(self, ex, ey):
+        xch, ych = ex - self.mousePosX, ey - self.mousePosY
+        self.mousePosX, self.mousePosY = ex, ey
+        
         for i in range(3):
             for j in range(3):
                 for k in range(3):
-                    self.cubes[i][j][k].rotateCube2D(clen * 3 / 2, clen * 3 / 2, 3)
+                    # self.cubes[i][j][k].rotateCube2D(clen * 3 / 2, clen * 3 / 2, -xch)
+                    self.cubes[i][j][k].rotateCube2D(clen * 3 / 2, clen * 3 / 2, -xch/2, ych/4)
+                    
+        
     
     def rotateIJK(self):
         for i in range(3):
@@ -271,17 +282,19 @@ class rubics:
         turtle.update()
         # sleep(0.02)
     
-    def clicked(self, point1, point2):
+    def clicked(self, event):
         self.lockRotation = 0
-        for i in range(30):
-            # print(i)
-            self.rotateIJK()
-            self.refresh()
+        self.mousePosX, self.mousePosY = event.x, event.y
+        # for i in range(30):
+        #     # print(i)
+        #     self.rotateIJK()
+        #     self.refresh()
 
     def dragging(self, event):
         if( self.dragFlag == 0 and self.lockRotation == 0):
             self.dragFlag = 1
-            self.rotateRC2D()
+            # print( self.mousePosX, self.mousePosY, event.x, event.y)
+            self.rotateRC2D(event.x, event.y)
             self.refresh()
             self.dragFlag = 0
 
@@ -308,7 +321,8 @@ if( __name__ == "__main__" ):
     canvas = turtle.getcanvas()
     root = canvas.winfo_toplevel()
     root.bind('<Motion>', rub.dragging)
-    root.bind('<ButtonRelease>', rub.onRelease)
-    s.onclick(rub.clicked)
+    root.bind('<ButtonRelease-1>', rub.onRelease)
+    root.bind('<ButtonPress-1>', rub.clicked)
+    # s.onclick(rub.clicked)
     
     s._root.mainloop()

@@ -284,8 +284,7 @@ class Cube():
         for rec in self.getAllSides():
             rec.rotateRect2D(xc, yc, alfa, betta, gamma)
 
-    def rotateCube3D(self, cubes, v2, angle):
-        v1 = cubes[1][1][1].center
+    def rotateCube3D(self, v1, v2, angle):
         self.center.rotatePoint3D(v1, v2, angle)
         for rec in self.getAllSides():
             rec.rotateRect3D(v1, v2, angle)
@@ -343,11 +342,82 @@ class rubics:
                     self.cubes[i][j][k].rotateCube2D(clen * 3 / 2, clen * 3 / 2, -xch/2, ych/4, ych/4)
 
     def rotateIJK(self):
+        number = 1
+        c1 = None
+        c2 = None
+        c3 = None
+        if number in [1, 2, 3, 4, 5, 6]:
+            v1 = self.cubes[1][1][1].center
+            v2 = self.cubes[1][2][1].center
+        elif number in [7, 8, 9, 10, 11, 12]:
+            v1 = self.cubes[1][1][1].center
+            v2 = self.cubes[2][1][1].center
+        elif number in [13, 14, 15, 16, 17, 18]:
+            v1 = self.cubes[1][1][1].center
+            v2 = self.cubes[1][1][2].center
+
+        if number in [1, 2, 3, 7, 8, 9, 13, 14, 15]:
+            sign = 1
+        else:
+            sign = -1
+
+        if number == 1:
+            c2 = 2
+        elif number == 2:
+            c2 = 1
+        elif number == 3:
+            c2 = 0
+        elif number == 4:
+            c2 = 2
+        elif number == 5:
+            c2 = 1
+        elif number == 6:
+            c2 = 0
+        elif number == 7:
+            c1 = 0
+        elif number == 8:
+            c1 = 1
+        elif number == 9:
+            c1 = 2
+        elif number == 10:
+            c1 = 0
+        elif number == 11:
+            c1 = 1
+        elif number == 12:
+            c1 = 2
+        elif number == 13:
+            c3 = 2
+        elif number == 14:
+            c3 = 1
+        elif number == 15:
+            c3 = 0
+        elif number == 16:
+            c3 = 2
+        elif number == 17:
+            c3 = 1
+        elif number == 18:
+            c3 = 0
         for l in range(15):
             for i in range(3):
                 for j in range(3):
-                    self.cubes[i][1][j].rotateCube3D(self.cubes, 6)
+                    if c1 != None:
+                        i1 = c1
+                    else:
+                        i1 = i
 
+                    if c3 != None:
+                        i3 = c3
+                    else:
+                        i3 = j
+
+                    if c1 != None:
+                        i2 = i
+                    if c2 != None:
+                        i2 = c2
+                    if c3 != None:
+                        i2 = j
+
+                    self.cubes[i1][i2][i3].rotateCube3D(v1, v2, sign * 6)
             
             self.refresh()
             

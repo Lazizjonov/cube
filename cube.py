@@ -11,7 +11,9 @@
 from time import sleep
 import turtle
 import math
- 
+import cubickRubicksLogic as crl
+
+
 
 pi = math.pi
 # colors = ["white", "red", "blue", "orange", "green", "yellow"]
@@ -58,6 +60,15 @@ def lineEquation(x1, y1, x2, y2):
 def angleBRC(x1, y1, z1, x2, y2, z2):
     return acos( (x1 - x2 + y1 - y2 + z1 - z2) / jasVal )  
 
+def rotatePointRelativeLine(sx, sy, sz, v1x, v1y, v1z, v2x, v2y, v2z, angle):
+    ca = cos(angle)
+    sa = sin(angle)
+    uvx, uvy, uvz = vectorToUnit(v2x - v1x, v2y - v1y, v2z - v1z)
+    x = (sx - v1x) * ( ca + uvx**2 * (1-ca) ) + (sy - v1y) * (uvy * uvx * (1-ca) + uvz * sa) + (sz - v1z) * ( uvz * uvx * (1-ca) - uvy * sa )
+    y = (sx - v1x) * ( uvy * uvx * (1-ca) - uvz * sa) + (sy - v1y) * (ca + uvy**2 * (1-ca) ) + (sz - v1z) * ( uvz * uvy * (1-ca) + uvx * sa )
+    z = (sx - v1x) * ( uvz * uvx * (1-ca) + uvy * sa) + (sy - v1y) * (uvz * uvy * (1-ca) - uvx * sa ) + (sz - v1z) * ( ca + uvz**2 * (1-ca) )
+    return int(round(x + v1x, 0)), int(round(y + v1y, 0)), int(round(z + v1z, 0))
+
 
 turtle.tracer(0, 0)
 t = turtle.getturtle()
@@ -86,10 +97,19 @@ class Point:
         self.y = y
         self.z = z
 
+    def __add__(self, other):
+        return Point(self.x + other.x, self.y + other.y, self.z + other.z)
+
+    def __sub__(self, other):
+        return Point(self.x - other.x, self.y - other.y, self.z - other.z)
+
     def changePoint(self, x, y, z):
         self.x = x
         self.y = y
         self.z = z
+    
+    def getDistanceFromMe2D(self, x, y):
+        return math.sqrt((self.x2D - x)**2 + (self.y2D - y)**2)  
 
     # takePoint2D() function takes 3d point and returns its 2d transition given degrees of all 3 axes
     def takePoint2D(self, xa = xAxis, ya = yAxis, za = zAxis):
@@ -113,6 +133,7 @@ class Point:
         y = (px - cx) * sine + (py - cy) * cosine
         return x + cx, y + cy
 
+    # rotate point in 3d relative to line formed by point v1 and point v2
     def rotatePoint3D(self, v1, v2, angle):
         ca = cos(angle)
         sa = sin(angle)
@@ -125,7 +146,8 @@ class Point:
 
 
 class Rect():
-    def __init__(self, color, sc:Point, cube):
+    def __init__(self, color, sc:Point, cube, side):
+        self.side = side
         self.p1 = Point(0,0,0)
         self.p2 = Point(0,0,0)
         self.p3 = Point(0,0,0)
@@ -133,7 +155,23 @@ class Rect():
         self.color = color
         self.dependCube = cube
         self.sc = sc
-    
+
+    # function getCloseSide returns the closest side to the point 
+    def getCloseSide(self, px, py):
+        d1 = self.p1.getDistanceFromMe2D(px, py)
+        d2 = self.p2.getDistanceFromMe2D(px, py)
+        d3 = self.p3.getDistanceFromMe2D(px, py)
+        d4 = self.p4.getDistanceFromMe2D(px, py)
+        
+        if d1 < d3 and d1 < d4 and d2 < d3 and d2 < d4:
+            return 1
+        elif d2 < d1 and d2 < d4 and d3 < d1 and d3 < d4:
+            return 2
+        elif d3 < d1 and d3 < d2 and d4 < d1 and d4 < d2:
+            return 3
+        else:
+            return 4
+
     # function to get center of Rectangle by calculating arithmetic avarage of current positions of 1st and 3rd points
     def getCenter(self):
         return [ (self.p1.x + self.p3.x)/2, (self.p1.y + self.p3.y)/2, (self.p1.z + self.p3.z)/2 ]
@@ -228,12 +266,12 @@ class Cube():
     def __init__(self, xPos, yPos, zPos, i, j, k):
         self.i, self.j, self.k = i, j, k
         self.center = Point(xPos + clen/2, yPos + clen/2, zPos + clen/2)
-        self.xSide = Rect("no", self.center, self)
-        self.ySide = Rect("no", self.center, self)
-        self.zSide = Rect("no", self.center, self)
-        self.mxSide = Rect("no", self.center, self)
-        self.mySide = Rect("no", self.center, self)
-        self.mzSide = Rect("no", self.center, self)
+        self.xSide = Rect("no", self.center, self, 1)
+        self.ySide = Rect("no", self.center, self, 2)
+        self.zSide = Rect("no", self.center, self, 3)
+        self.mxSide = Rect("no", self.center, self, 4)
+        self.mySide = Rect("no", self.center, self, 5)
+        self.mzSide = Rect("no", self.center, self, 6)
         self.setPoints(xPos, yPos, zPos)
 
     def getAllSides(self):
@@ -297,6 +335,8 @@ class rubics:
         self.visibleRects = []
         self.dragFlag = 0
         self.lockRotation = 1
+        self.sideRotationFlag = 0
+        self.sideRotating = 0
         self.mousePosX = 0
         self.mousePosY = 0
         self.turtlePosX = 0
@@ -341,20 +381,36 @@ class rubics:
                 for k in range(3):
                     self.cubes[i][j][k].rotateCube2D(clen * 3 / 2, clen * 3 / 2, -xch/2, ych/4, ych/4)
 
+    # Function takeNumOfRotation will return number of rotation (from 1 to 18) of RC
+    def takeNumOfRotation(self):
+        aRX = self.activeRect
+        activeCube = aRX.dependCube
+        activeSide = aRX.side
+        rTX, rTY = self.releaseTX, self.releaseTY
+        cs = aRX.getCloseSide(rTX, rTY)
+        ic, jc, kc = activeCube.i, activeCube.j, activeCube.k
+        return crl.mp(ic, jc, kc, activeSide, cs)
+
+    # Function rotateIJK have all (18 rotations of RC) 
     def rotateIJK(self):
-        number = 1
+
+        number = self.takeNumOfRotation()
         c1 = None
         c2 = None
         c3 = None
+        v1 = self.cubes[1][1][1].center
+        rc1 = (1, 1, 1)
+        rotatedCubesArr = []
+
         if number in [1, 2, 3, 4, 5, 6]:
-            v1 = self.cubes[1][1][1].center
             v2 = self.cubes[1][2][1].center
+            rc2 = (1, 2, 1)
         elif number in [7, 8, 9, 10, 11, 12]:
-            v1 = self.cubes[1][1][1].center
             v2 = self.cubes[2][1][1].center
+            rc2 = (2, 1, 1)
         elif number in [13, 14, 15, 16, 17, 18]:
-            v1 = self.cubes[1][1][1].center
             v2 = self.cubes[1][1][2].center
+            rc2 = (1, 1, 2)
 
         if number in [1, 2, 3, 7, 8, 9, 13, 14, 15]:
             sign = 1
@@ -418,9 +474,42 @@ class rubics:
                         i2 = j
 
                     self.cubes[i1][i2][i3].rotateCube3D(v1, v2, sign * 6)
-            
+                    
+                    # last loop of rotation animation
+                    if l == 14:
+                        rotatedCubesArr.append((self.cubes[i1][i2][i3], *rotatePointRelativeLine(i1, i2, i3, *rc1, *rc2, sign * 90)))
+
             self.refresh()
+        
+        # This loop changes (replaces) position of rotated cubes (i,j,k) in 3d Matrix[][][] 
+        for cus in rotatedCubesArr:
+            cus[0].i, cus[0].j, cus[0].k = cus[1], cus[2], cus[3]
+            self.cubes[cus[1]][cus[2]][cus[3]] = cus[0]
+        
+        # This loop rotates 9 (allready rotated) cubes relatively to their own axis counterclockwise to initial rotation
+        for cubeAtIJK in rotatedCubesArr:
+            xc = cubeAtIJK[0] # each rotated cube 
+            cc = xc.center # center of each rotated cube
+            rc = cc + (v2 - v1) # second vector to call function rotateCube3D
+            xc.rotateCube3D(cc, rc, -sign * 90) # rotation itself
             
+            if(number in [16, 17, 18]):
+                xc.xSide.color, xc.ySide.color, xc.mxSide.color, xc.mySide.color = xc.mySide.color, xc.xSide.color, xc.ySide.color, xc.mxSide.color
+            elif(number in [13, 14, 15]):
+                xc.xSide.color, xc.ySide.color, xc.mxSide.color, xc.mySide.color = xc.ySide.color, xc.mxSide.color, xc.mySide.color, xc.xSide.color
+            elif(number in [10, 11, 12]):
+                xc.zSide.color, xc.ySide.color, xc.mzSide.color, xc.mySide.color = xc.ySide.color, xc.mzSide.color, xc.mySide.color, xc.zSide.color
+            elif(number in [7, 8, 9]):
+                xc.zSide.color, xc.ySide.color, xc.mzSide.color, xc.mySide.color = xc.mySide.color, xc.zSide.color, xc.ySide.color, xc.mzSide.color
+            elif(number in [4, 5, 6]):
+                xc.xSide.color, xc.zSide.color, xc.mxSide.color, xc.mzSide.color = xc.zSide.color, xc.mxSide.color, xc.mzSide.color, xc.xSide.color
+            elif(number in [1, 2, 3]):
+                xc.xSide.color, xc.zSide.color, xc.mxSide.color, xc.mzSide.color = xc.mzSide.color, xc.xSide.color, xc.zSide.color, xc.mxSide.color
+
+        # sleep(1)
+        self.refresh()
+        
+
     def refresh(self):
         t.clear()
         self.drawRC(ren)
@@ -429,11 +518,11 @@ class rubics:
     
     def clicked(self, event):
         self.lockRotation = 0
-        self.sideRotationFlag = 0
         self.mousePosX, self.mousePosY = event.x, event.y
         self.xDif, self.yDif = self.turtlePosX - event.x, self.turtlePosY + event.y
-        for rect in self.visibleRects:            
-            if (rect.isinside(event.x + self.xDif, self.yDif - event.y)):
+        for rect in self.visibleRects:      
+            # if (rect.isinside(event.x + self.xDif, self.yDif - event.y)):
+            if (rect.isinside(self.turtlePosX, self.turtlePosY)):      
                 self.lockRotation = 1
                 self.sideRotationFlag = 1
                 self.activeRect = rect
@@ -451,9 +540,14 @@ class rubics:
             self.dragFlag = 0
 
     def onRelease(self, event):
+        self.releaseTX, self.releaseTY = event.x + self.xDif, self.yDif - event.y
         self.lockRotation = 1
-        if(self.sideRotationFlag == 1):
+        if(self.sideRotationFlag == 1 and self.sideRotating == 0):
+            self.sideRotating = 1
             self.rotateIJK()
+            self.sideRotating = 0
+            self.sideRotationFlag = 0
+            
 
 
 # turtle.tracer(0, 0) is used to make the speed of turtle object as fast as possible

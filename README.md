@@ -1,4 +1,4 @@
-# cube
+# cube.py
 rubick's cube on python turtle :)
 
 > Python's turtle graphic is too simple and I wanted to reach its limits by implementing 3d game with that

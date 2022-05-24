@@ -3,7 +3,7 @@
 
 # Implementation of Rubick's Cube (RC) with python turtle
 # To date Rubick's Cube is fully rotatable by mouse drag
-# 26.04.2022 I could rotate one side of RC and currently I am working on a simple algorithm for mouse event connection with rotation functions.
+# 24.05.2022 project is finally working
 
 
 

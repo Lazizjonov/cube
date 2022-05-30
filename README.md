@@ -1,6 +1,12 @@
 # cube.py
 rubick's cube on python turtle :)
 
+> To run the code you need to cmd **python cube.py**
+
+```cmd
+  python cube.py
+```
+
 > Python's turtle graphic is too simple and I wanted to reach its limits by implementing 3d game with that
 
 This code is simply used to draw red rectangle
